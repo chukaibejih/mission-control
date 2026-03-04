@@ -73,3 +73,9 @@ body::after {
   to   { opacity: 1; transform: translateY(0); }
 }
 .scan-in { animation: scanIn 0.25s ease forwards; }
+
+@keyframes taskHighlight {
+  0%   { box-shadow: 0 0 0 1px rgba(0,255,157,0.6), 0 0 12px rgba(0,255,157,0.3); }
+  100% { box-shadow: 0 0 0 1px transparent, 0 0 0 transparent; }
+}
+.task-highlight { animation: taskHighlight 2s ease-out forwards; }

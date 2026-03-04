@@ -38,3 +38,21 @@ export async function POST(
   }
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { endpoint: string } }
+) {
+  try {
+    const body = await req.text()
+    const res = await fetch(`${BASE}/${params.endpoint}`, {
+      method: 'PATCH',
+      headers: { 'x-api-key': KEY, 'Content-Type': 'application/json' },
+      body,
+    })
+    const data = await res.json()
+    return NextResponse.json(data, { status: res.status })
+  } catch (e) {
+    return NextResponse.json({ error: 'Clawd API unreachable' }, { status: 503 })
+  }
+}
+

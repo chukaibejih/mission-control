@@ -1,19 +1,26 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import type { Doc } from '@/lib/api'
+import type { Doc, Project } from '@/lib/api'
 
 export default function DocsPage() {
   const [docs, setDocs] = useState<Doc[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [selected, setSelected] = useState<Doc | null>(null)
   const [search, setSearch] = useState('')
+  const [projectFilter, setProjectFilter] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/proxy/docs')
-      const json = await res.json()
-      const data: Doc[] = json.data ?? json
+      const [docsRes, projRes] = await Promise.all([
+        fetch('/api/proxy/docs'),
+        fetch('/api/proxy/projects'),
+      ])
+      const docsJson = await docsRes.json()
+      const projJson = await projRes.json()
+      const data: Doc[] = docsJson.data ?? docsJson
       setDocs(data)
+      setProjects(projJson.data ?? projJson)
       if (data.length > 0) setSelected(data[0])
     } catch {}
     setLoading(false)
@@ -21,10 +28,15 @@ export default function DocsPage() {
 
   useEffect(() => { load() }, [load])
 
-  const filtered = docs.filter(d =>
-    d.label.toLowerCase().includes(search.toLowerCase()) ||
-    d.content.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = docs.filter(d => {
+    const matchesSearch = !search ||
+      d.label.toLowerCase().includes(search.toLowerCase()) ||
+      d.content.toLowerCase().includes(search.toLowerCase())
+    const matchesProject = !projectFilter ||
+      d.path?.includes(projectFilter) ||
+      d.label?.toLowerCase().includes(projectFilter)
+    return matchesSearch && matchesProject
+  })
 
   return (
     <div className="animate-fade-in h-full">
@@ -43,6 +55,23 @@ export default function DocsPage() {
             onChange={e => setSearch(e.target.value)}
             className="w-full bg-surface border border-border rounded px-3 py-2 text-xs text-text placeholder-text-dim focus:outline-none focus:border-accent/50 font-mono"
           />
+          <div className="flex flex-wrap gap-1">
+            <button
+              onClick={() => setProjectFilter(null)}
+              className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-widest border transition ${!projectFilter ? 'bg-accent/20 border-accent/40 text-accent' : 'border-border text-text-dim hover:text-text'}`}
+            >
+              All
+            </button>
+            {projects.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setProjectFilter(projectFilter === p.id ? null : p.id)}
+                className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-widest border transition ${projectFilter === p.id ? 'bg-accent/20 border-accent/40 text-accent' : 'border-border text-text-dim hover:text-text'}`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
           <div className="flex-1 overflow-y-auto space-y-1">
             {loading ? (
               <div className="text-xs text-text-dim animate-pulse-slow px-2">Loading…</div>

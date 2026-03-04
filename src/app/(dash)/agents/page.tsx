@@ -10,11 +10,17 @@ const STATUS_STYLES: Record<Agent['status'], { dot: string; bg: string; border: 
   offline: { dot: 'bg-danger', bg: 'rgba(255,68,102,0.15)', border: 'rgba(255,68,102,0.6)', text: '#ff4466' },
 }
 
+const MISSION_KEY = 'mc_agent_mission'
+const DEFAULT_MISSION = 'Build, ship, and maintain autonomous software systems that create real value — every day, every commit.'
+
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(Date.now())
   const [showModal, setShowModal] = useState(false)
+  const [mission, setMission] = useState(DEFAULT_MISSION)
+  const [editingMission, setEditingMission] = useState(false)
+  const [missionDraft, setMissionDraft] = useState('')
   const [form, setForm] = useState({
     name: '',
     role: '',
@@ -37,7 +43,14 @@ export default function AgentsPage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(t) }, [])
+  useEffect(() => { const saved = localStorage.getItem(MISSION_KEY); if (saved) setMission(saved) }, [])
   useSSE((r) => { if (r === 'agents') load() })
+
+  function saveMission() {
+    setMission(missionDraft)
+    localStorage.setItem(MISSION_KEY, missionDraft)
+    setEditingMission(false)
+  }
 
   function since(ts: string) {
     const diff = Math.floor((now - new Date(ts).getTime()) / 1000)
@@ -114,6 +127,37 @@ export default function AgentsPage() {
           + Add Agent
         </button>
       </header>
+
+      {/* Mission Statement */}
+      <div className="mb-6 bg-surface border border-border rounded p-4 glow-box">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] uppercase tracking-widest text-accent font-700">Mission Statement</span>
+          {!editingMission && (
+            <button
+              onClick={() => { setMissionDraft(mission); setEditingMission(true) }}
+              className="text-[10px] text-text-dim hover:text-text transition-colors"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+        {editingMission ? (
+          <div className="space-y-2">
+            <textarea
+              value={missionDraft}
+              onChange={e => setMissionDraft(e.target.value)}
+              className="w-full bg-bg border border-border rounded px-3 py-2 text-xs text-text min-h-[60px] focus:outline-none focus:border-accent/60"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setEditingMission(false)} className="text-[10px] text-text-dim">Cancel</button>
+              <button onClick={saveMission} className="text-[10px] text-accent hover:text-accent/80">Save</button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-text-dim leading-relaxed italic">{mission}</p>
+        )}
+      </div>
 
       {loading ? (
         <div className="text-accent text-xs animate-pulse-slow">Scanning agents…</div>
