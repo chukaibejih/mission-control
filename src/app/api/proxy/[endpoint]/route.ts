@@ -18,3 +18,23 @@ export async function GET(
     return NextResponse.json({ error: 'Clawd API unreachable', data: [] }, { status: 503 })
   }
 }
+
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { endpoint: string } }
+) {
+  try {
+    const body = await req.text()
+    const res = await fetch(`${BASE}/${params.endpoint}`, {
+      method: 'POST',
+      headers: { 'x-api-key': KEY, 'Content-Type': 'application/json' },
+      body,
+    })
+    const data = await res.json()
+    return NextResponse.json(data, { status: res.status })
+  } catch (e) {
+    return NextResponse.json({ error: 'Clawd API unreachable' }, { status: 503 })
+  }
+}
+
