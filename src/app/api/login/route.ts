@@ -8,12 +8,16 @@ export async function POST(req: NextRequest) {
   if (password !== PASSWORD) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
   }
+  const isSecure =
+    req.headers.get('x-forwarded-proto') === 'https' || req.nextUrl.protocol === 'https:'
+
   const response = NextResponse.json({ ok: true })
   response.cookies.set('mc_auth', 'true', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecure,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7, // 7 days
+    path: '/',
   })
   return response
 }
