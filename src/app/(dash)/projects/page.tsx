@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSSE } from '@/hooks/useSSE'
 import type { Project, Task, Doc } from '@/lib/api'
+import { deferToIdle } from '@/lib/defer'
 
 const STATUS_STYLE: Record<string, { color: string; label: string }> = {
   active:   { color: '#00ff9d', label: 'ACTIVE' },
@@ -17,30 +18,53 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [docs, setDocs] = useState<Doc[]>([])
+  const [docsReady, setDocsReady] = useState(false)
+  const [docsLoading, setDocsLoading] = useState(false)
+  const [docsError, setDocsError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [promptBusy, setPromptBusy] = useState<string | null>(null)
   const [promptResponse, setPromptResponse] = useState<Record<string, string>>({})
 
-  const load = useCallback(async () => {
+  const loadCore = useCallback(async () => {
     try {
-      const [projRes, tasksRes, docsRes] = await Promise.all([
+      const [projRes, tasksRes] = await Promise.all([
         fetch('/api/proxy/projects'),
         fetch('/api/proxy/tasks'),
-        fetch('/api/proxy/docs'),
       ])
       const projJson = await projRes.json()
       const tasksJson = await tasksRes.json()
-      const docsJson = await docsRes.json()
       setProjects(projJson.data ?? projJson)
       setTasks(tasksJson.data ?? tasksJson)
-      setDocs(docsJson.data ?? docsJson)
     } catch {}
     setLoading(false)
   }, [])
 
-  useEffect(() => { load() }, [load])
-  useSSE((r) => { if (r === 'projects' || r === 'tasks' || r === 'docs') load() })
+  const loadDocs = useCallback(async () => {
+    setDocsLoading(true)
+    setDocsError(null)
+    try {
+      const docsRes = await fetch('/api/proxy/docs')
+      const docsJson = await docsRes.json()
+      setDocs(docsJson.data ?? docsJson)
+      setDocsReady(true)
+    } catch {
+      setDocsError('Docs unavailable (API offline?)')
+      setDocsReady(false)
+    }
+    setDocsLoading(false)
+  }, [])
+
+  useEffect(() => {
+    loadCore()
+    const cancel = deferToIdle(() => loadDocs(), 1200)
+    return () => cancel()
+  }, [loadCore, loadDocs])
+
+  useSSE((r) => {
+    if (r === 'projects' || r === 'tasks') loadCore()
+    if (r === 'docs') loadDocs()
+  })
 
   const tasksForProject = (id: string) => tasks.filter(t => t.project === id)
   const docsForProject = (id: string) => docs.filter(d => d.path?.includes(id) || d.label?.toLowerCase().includes(id))
@@ -153,7 +177,11 @@ export default function ProjectsPage() {
                     {/* Docs */}
                     <div>
                       <span className="block text-[10px] uppercase tracking-widest text-text-dim mb-2">Documents</span>
-                      {pDocs.length === 0 ? (
+                      {!docsReady ? (
+                        <span className="text-[10px] text-text-dim">
+                          {docsLoading ? 'Loading docs…' : (docsError || 'Docs will load once ready')}
+                        </span>
+                      ) : pDocs.length === 0 ? (
                         <span className="text-[10px] text-text-dim">No docs linked</span>
                       ) : (
                         <div className="space-y-1">
