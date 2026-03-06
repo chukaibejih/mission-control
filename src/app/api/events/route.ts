@@ -3,6 +3,11 @@ import { NextRequest } from 'next/server'
 const BASE = process.env.CLAWD_API_URL || 'http://127.0.0.1:4310'
 const KEY  = process.env.CLAWD_API_KEY  || 'mission-control-dev-key'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+export const revalidate = 0
+
 export async function GET(req: NextRequest) {
   const encoder = new TextEncoder()
 
@@ -11,6 +16,7 @@ export async function GET(req: NextRequest) {
       try {
         const upstream = await fetch(`${BASE}/events`, {
           headers: { 'x-api-key': KEY },
+          cache: 'no-store',
         })
         const reader = upstream.body?.getReader()
         if (!reader) { controller.close(); return }

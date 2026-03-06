@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { parseActivity, todayStr, type ActivityEntry } from '@/lib/parseActivity'
 import type { MemoryFile } from '@/lib/api'
+import { deferToIdle } from '@/lib/defer'
 
 const TYPE_CONFIG: Record<ActivityEntry['type'], { color: string; label: string }> = {
   status_change: { color: '#ffaa00', label: 'STATUS' },
@@ -16,6 +17,7 @@ export function ActivityFeed({ refreshKey }: { refreshKey: number }) {
   const [entries, setEntries] = useState<ActivityEntry[]>([])
   const [collapsed, setCollapsed] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const loadActivity = useCallback(async () => {
@@ -43,7 +45,23 @@ export function ActivityFeed({ refreshKey }: { refreshKey: number }) {
     setLoading(false)
   }, [])
 
-  useEffect(() => { loadActivity() }, [loadActivity, refreshKey])
+  useEffect(() => {
+    let cancelled = false
+    const cleanup = deferToIdle(() => {
+      loadActivity().finally(() => {
+        if (!cancelled) setInitialized(true)
+      })
+    }, 900)
+    return () => {
+      cancelled = true
+      cleanup()
+    }
+  }, [loadActivity])
+
+  useEffect(() => {
+    if (!initialized) return
+    loadActivity()
+  }, [initialized, refreshKey, loadActivity])
 
   // Auto-scroll to bottom on new entries
   useEffect(() => {
