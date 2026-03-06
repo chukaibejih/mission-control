@@ -125,7 +125,16 @@ export default function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-border">
+      <div className="px-5 py-4 border-t border-border space-y-2">
+        <Link
+          href="/help"
+          className={`flex items-center gap-2 text-[10px] tracking-widest uppercase transition-colors ${
+            path.startsWith('/help') ? 'text-accent' : 'text-text-dim hover:text-text'
+          }`}
+        >
+          <span className="text-sm w-4 text-center">?</span>
+          Help
+        </Link>
         <form action="/api/logout" method="POST">
           <button className="text-[10px] text-text-dim hover:text-danger tracking-widest uppercase transition-colors">
             ⏻ Logout
