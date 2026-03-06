@@ -69,6 +69,7 @@ export default function TasksPage() {
   const [memorySnippets, setMemorySnippets] = useState<{ file: string; lines: string[] }[]>([])
   const [memoryLoading, setMemoryLoading] = useState(false)
   const [reviewAlert, setReviewAlert] = useState<string[]>([])
+  const [reassigningId, setReassigningId] = useState<string | null>(null)
 
 
   const load = useCallback(async () => {
@@ -184,6 +185,21 @@ export default function TasksPage() {
   function selectTask(task: Task) {
     setSelectedTask(task)
     loadMemoryForTask(task)
+  }
+
+  async function handleReassign(taskId: string, agentId: string) {
+    setReassigningId(taskId)
+    try {
+      const res = await fetch(`/api/proxy/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent: agentId }),
+      })
+      if (!res.ok) throw new Error('Failed to reassign task')
+      await load()
+      setSelectedTask(prev => (prev && prev.id === taskId ? { ...prev, agent: agentId } : prev))
+    } catch {}
+    setReassigningId(null)
   }
 
   async function handleReviewAction(taskId: string, action: 'approve' | 'reject') {
@@ -429,6 +445,27 @@ export default function TasksPage() {
                   No memory entries found for this task
                 </div>
               )}
+            </div>
+
+            {/* Reassignment */}
+            <div>
+              <span className="block text-[10px] uppercase tracking-widest text-text-dim mb-2">Reassign Task</span>
+              <div className="flex flex-wrap gap-2">
+                {agents.map(agent => (
+                  <button
+                    key={agent.id}
+                    type="button"
+                    disabled={reassigningId === selectedTask.id}
+                    onClick={() => handleReassign(selectedTask.id, agent.id)}
+                    className={`px-3 py-1 rounded text-xs border transition ${selectedTask.agent === agent.id ? 'bg-accent/20 border-accent text-accent' : 'border-border text-text'} ${reassigningId === selectedTask.id ? 'opacity-60 cursor-wait' : ''}`}
+                  >
+                    {agent.name}
+                  </button>
+                ))}
+                {agents.length === 0 && (
+                  <span className="text-[10px] text-text-dim">No agents available</span>
+                )}
+              </div>
             </div>
 
             {/* Review Actions */}
