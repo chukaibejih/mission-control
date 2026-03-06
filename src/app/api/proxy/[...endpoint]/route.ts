@@ -59,3 +59,20 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { endpoint: string[] } }
+) {
+  const target = params.endpoint.join('/')
+  try {
+    const res = await fetch(`${BASE}/${target}`, {
+      method: 'DELETE',
+      headers: { 'x-api-key': KEY },
+    })
+    const data = await res.json()
+    return NextResponse.json(data, { status: res.status })
+  } catch (e) {
+    return NextResponse.json({ error: 'Clawd API unreachable' }, { status: 503 })
+  }
+}
+

@@ -55,6 +55,11 @@ export interface Agent {
   device: string
   session_key: string
   last_seen: string
+  model?: string
+  contextUsagePct?: number
+  totalTokens?: number
+  inputTokens?: number
+  outputTokens?: number
 }
 
 export interface Schedule {

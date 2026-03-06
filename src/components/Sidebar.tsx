@@ -12,6 +12,7 @@ const nav = [
   { href: '/memory',   label: 'Memory',   icon: '◎' },
   { href: '/docs',     label: 'Docs',     icon: '◻' },
   { href: '/office',   label: 'Office',   icon: '◫' },
+  { href: '/servers',  label: 'Servers',  icon: '⬡' },
   { href: '/prs',      label: 'PRs',      icon: '◆' },
 ]
 

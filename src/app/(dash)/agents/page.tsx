@@ -192,7 +192,49 @@ export default function AgentsPage() {
                   <span className="text-text-dim">Last seen</span>
                   <span className="text-accent text-[10px]">{since(agent.last_seen)}</span>
                 </div>
+                {agent.model && (
+                  <div className="flex justify-between">
+                    <span className="text-text-dim">Model</span>
+                    <span className="text-text font-mono">{agent.model}</span>
+                  </div>
+                )}
+                {agent.totalTokens != null && (
+                  <div className="flex justify-between">
+                    <span className="text-text-dim">Tokens this session</span>
+                    <span className="text-text font-mono text-[10px]">{agent.totalTokens.toLocaleString()}</span>
+                  </div>
+                )}
+                {agent.inputTokens != null && agent.outputTokens != null && (
+                  <div className="flex justify-between">
+                    <span className="text-text-dim">Input / Output</span>
+                    <span className="text-text font-mono text-[10px]">in: {agent.inputTokens.toLocaleString()} · out: {agent.outputTokens.toLocaleString()}</span>
+                  </div>
+                )}
               </div>
+
+              {/* Context usage bar */}
+              {agent.contextUsagePct != null && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] uppercase tracking-widest text-text-dim">Context Usage</span>
+                    <span className="text-xs font-mono font-700" style={{
+                      color: agent.contextUsagePct < 60 ? '#00ff9d' : agent.contextUsagePct < 85 ? '#ffaa00' : '#ff4466'
+                    }}>
+                      {agent.contextUsagePct}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-bg rounded-full overflow-hidden border border-border">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${agent.contextUsagePct}%`,
+                        background: agent.contextUsagePct < 60 ? '#00ff9d' : agent.contextUsagePct < 85 ? '#ffaa00' : '#ff4466',
+                        boxShadow: `0 0 8px ${agent.contextUsagePct < 60 ? '#00ff9d' : agent.contextUsagePct < 85 ? '#ffaa00' : '#ff4466'}66`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-widest text-text-dim">
                 <span>Status</span>
