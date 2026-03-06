@@ -12,27 +12,71 @@ function intervalLabel(s: Schedule['schedule']) {
   return s.kind
 }
 
-const DAYS  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19,20]
-const START_MINUTES = 8 * 60
-
-const COLOR_MAP: Record<string, { bg: string; border: string; text: string }> = {
-  'sch-heartbeat-workspace': { bg: 'rgba(68,153,255,0.12)', border: '#4499ff', text: '#1b78ff' },
-  'sch-heartbeat-calendar': { bg: 'rgba(255,170,0,0.12)', border: '#ffaa00', text: '#c77a00' },
-  'sch-heartbeat-logs': { bg: 'rgba(204,68,255,0.12)', border: '#cc44ff', text: '#8e1cb8' },
-  'sch-heartbeat-maintenance': { bg: 'rgba(255,68,102,0.12)', border: '#ff4466', text: '#d0193b' },
+function runsPerDay(s: Schedule['schedule']): number {
+  if (s.kind === 'interval' && s.every_minutes) return Math.floor(1440 / s.every_minutes)
+  if (s.kind === 'cron') return 1
+  return 0
 }
 
-function shouldRender(hour: number, schedule: Schedule) {
-  const minutes = schedule.schedule.every_minutes || 0
-  const offset = hour * 60 - START_MINUTES
-  if (offset < 0) return false
-  if (!minutes) return hour === 8
-  if (minutes < 60) {
-    // Show sub-hourly routines once per hour block
-    return true
+function nextRunLabel(s: Schedule): string {
+  if (s.schedule.kind === 'interval' && s.schedule.every_minutes) {
+    const mins = s.schedule.every_minutes
+    const now = new Date()
+    const elapsed = now.getHours() * 60 + now.getMinutes()
+    const remaining = mins - (elapsed % mins)
+    if (remaining < 60) return `~${remaining}m`
+    return `~${Math.floor(remaining / 60)}h ${remaining % 60}m`
   }
-  return offset % minutes === 0
+  if (s.schedule.kind === 'cron' && s.schedule.cron) {
+    const parts = s.schedule.cron.split(' ')
+    if (parts.length >= 2) {
+      const hour = parseInt(parts[1])
+      const min = parseInt(parts[0])
+      if (!isNaN(hour) && !isNaN(min)) {
+        return `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} UTC`
+      }
+    }
+  }
+  return '—'
+}
+
+const HOURS_24 = Array.from({ length: 24 }, (_, i) => i)
+
+const COLOR_PALETTE = [
+  { bg: 'rgba(68,153,255,0.12)', border: '#4499ff', text: '#4499ff', dot: '#4499ff' },
+  { bg: 'rgba(255,170,0,0.12)', border: '#ffaa00', text: '#ffaa00', dot: '#ffaa00' },
+  { bg: 'rgba(204,68,255,0.12)', border: '#cc44ff', text: '#cc44ff', dot: '#cc44ff' },
+  { bg: 'rgba(255,68,102,0.12)', border: '#ff4466', text: '#ff4466', dot: '#ff4466' },
+  { bg: 'rgba(0,255,157,0.12)', border: '#00ff9d', text: '#00ff9d', dot: '#00ff9d' },
+]
+
+const COLOR_MAP: Record<string, typeof COLOR_PALETTE[0]> = {
+  'sch-heartbeat-workspace': COLOR_PALETTE[0],
+  'sch-heartbeat-calendar': COLOR_PALETTE[1],
+  'sch-heartbeat-logs': COLOR_PALETTE[2],
+  'sch-heartbeat-maintenance': COLOR_PALETTE[3],
+}
+
+function getColor(s: Schedule, i: number) {
+  return COLOR_MAP[s.id] || COLOR_PALETTE[i % COLOR_PALETTE.length]
+}
+
+function getFireHours(s: Schedule): number[] {
+  if (s.schedule.kind === 'interval' && s.schedule.every_minutes) {
+    const mins = s.schedule.every_minutes
+    const hours: number[] = []
+    for (let m = 0; m < 1440; m += mins) {
+      const h = Math.floor(m / 60)
+      if (!hours.includes(h)) hours.push(h)
+    }
+    return hours
+  }
+  if (s.schedule.kind === 'cron' && s.schedule.cron) {
+    const parts = s.schedule.cron.split(' ')
+    const hour = parseInt(parts[1])
+    if (!isNaN(hour)) return [hour]
+  }
+  return []
 }
 
 export default function CalendarPage() {
@@ -134,42 +178,82 @@ export default function CalendarPage() {
         </div>
       </section>
 
-      <section>
-        <div className="text-[10px] uppercase tracking-widest text-text-dim mb-3">This Week</div>
-        <div className="border border-border rounded overflow-hidden">
-          <div className="grid grid-cols-8 border-b border-border">
-            <div className="p-2 text-[9px] text-text-dim border-r border-border" />
-            {DAYS.map(d => (
-              <div key={d} className="p-2 text-center text-[10px] uppercase tracking-widest text-text-dim border-r border-border last:border-r-0">
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {HOURS.map(h => (
-            <div key={h} className="grid grid-cols-8 border-b border-border last:border-b-0">
-              <div className="p-1.5 text-[9px] text-text-dim border-r border-border text-right pr-2 leading-none pt-2">
-                {h > 12 ? `${h-12}pm` : h === 12 ? '12pm' : `${h}am`}
-              </div>
-              {DAYS.map(d => (
-                <div key={d} className="border-r border-border last:border-r-0 h-14 relative">
-                  {schedules.map(s => {
-                    if (!shouldRender(h, s)) return null
-                    const colors = COLOR_MAP[s.id] || { bg: 'rgba(0,255,157,0.08)', border: 'rgba(0,255,157,0.5)', text: '#00ff9d' }
-                    return (
-                      <div
-                        key={`${s.id}-${d}-${h}`}
-                        className="absolute inset-1 rounded-sm border px-2 py-1 text-[9px] flex items-center transition-transform duration-200 hover:scale-[1.02]"
-                        style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}
-                      >
-                        <span className="font-600 truncate">{s.name}</span>
-                      </div>
-                    )
-                  })}
+      {/* Schedule detail list */}
+      <section className="mb-8">
+        <div className="text-[10px] uppercase tracking-widest text-text-dim mb-3">Schedule Details</div>
+        <div className="space-y-3">
+          {!loading && schedules.map((s, i) => {
+            const colors = getColor(s, i)
+            const rpd = runsPerDay(s.schedule)
+            return (
+              <div key={s.id} className="bg-surface border border-border rounded-lg p-4 hover:border-accent/30 transition-all scan-in">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colors.dot, boxShadow: `0 0 6px ${colors.dot}44` }} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-700 text-text truncate">{s.name}</div>
+                      <div className="text-[10px] text-text-dim mt-0.5">{s.description || 'No description'}</div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 space-y-1">
+                    <div className="text-[10px] font-mono px-2 py-0.5 rounded border" style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}>
+                      {intervalLabel(s.schedule)}
+                    </div>
+                    <div className="text-[9px] text-text-dim">{rpd}x / day</div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          ))}
+
+                {/* Meta row */}
+                <div className="flex items-center gap-4 text-[10px] text-text-dim mb-3">
+                  <span>Owner: <span className="text-text">{s.owner}</span></span>
+                  {s.source && <span>Source: <span className="text-text font-mono">{s.source}</span></span>}
+                  <span>Next: <span className="text-accent">{nextRunLabel(s)}</span></span>
+                </div>
+
+                {/* 24h timeline bar */}
+                <div className="relative">
+                  <div className="flex items-center gap-0">
+                    {HOURS_24.map(h => {
+                      const fires = getFireHours(s)
+                      const active = fires.includes(h)
+                      return (
+                        <div key={h} className="flex-1 group relative">
+                          <div
+                            className="h-3 border-r border-border/30 transition-all"
+                            style={{
+                              background: active ? colors.bg : 'transparent',
+                              borderBottom: active ? `2px solid ${colors.border}` : '2px solid transparent',
+                            }}
+                          />
+                          {/* Tooltip on hover */}
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10">
+                            <div className="bg-bg border border-border rounded px-1.5 py-0.5 text-[8px] text-text-dim whitespace-nowrap">
+                              {h.toString().padStart(2, '0')}:00{active ? ' — runs' : ''}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* Hour labels */}
+                  <div className="flex items-center gap-0 mt-0.5">
+                    {HOURS_24.map(h => (
+                      <div key={h} className="flex-1 text-center text-[7px] text-text-dim/50">
+                        {h % 6 === 0 ? `${h}` : ''}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Current time indicator */}
+                  <div
+                    className="absolute top-0 h-3 w-px bg-accent z-10"
+                    style={{ left: `${((new Date().getHours() * 60 + new Date().getMinutes()) / 1440) * 100}%` }}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-accent -translate-x-[2.5px] -translate-y-[1px]" />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </section>
 
