@@ -6,9 +6,10 @@ export default function MemoryPage() {
   const [files, setFiles] = useState<MemoryFile[]>([])
   const [selected, setSelected] = useState<MemoryFile | null>(null)
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
+    setLoading(true)
     try {
       const res = await fetch('/api/proxy/memory')
       const json = await res.json()
@@ -18,8 +19,6 @@ export default function MemoryPage() {
     } catch {}
     setLoading(false)
   }, [])
-
-  useEffect(() => { load() }, [load])
 
   const filtered = files.filter(f =>
     f.name.includes(search) || f.content.toLowerCase().includes(search.toLowerCase())
@@ -44,14 +43,23 @@ export default function MemoryPage() {
       <div className="flex gap-4 h-[calc(100vh-12rem)]">
         {/* File list */}
         <div className="w-52 shrink-0 flex flex-col gap-2">
-          <input
-            type="text"
-            placeholder="Search…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-surface border border-border rounded px-3 py-2 text-xs text-text placeholder-text-dim focus:outline-none focus:border-accent/50 font-mono"
-          />
-          <div className="flex-1 overflow-y-auto space-y-1">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="flex-1 bg-surface border border-border rounded px-3 py-2 text-xs text-text placeholder-text-dim focus:outline-none focus:border-accent/50 font-mono"
+            />
+            <button
+              onClick={load}
+              className="px-3 py-2 text-[10px] font-mono rounded border border-accent/40 text-accent hover:bg-accent/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              {loading ? 'Loading…' : (files.length ? 'Reload' : 'Load')}
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-1 mt-1">
             {loading ? (
               <div className="text-xs text-text-dim animate-pulse-slow px-2">Loading…</div>
             ) : filtered.map(f => (

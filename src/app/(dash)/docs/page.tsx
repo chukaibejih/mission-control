@@ -8,9 +8,10 @@ export default function DocsPage() {
   const [selected, setSelected] = useState<Doc | null>(null)
   const [search, setSearch] = useState('')
   const [projectFilter, setProjectFilter] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
+    setLoading(true)
     try {
       const [docsRes, projRes] = await Promise.all([
         fetch('/api/proxy/docs'),
@@ -20,13 +21,11 @@ export default function DocsPage() {
       const projJson = await projRes.json()
       const data: Doc[] = docsJson.data ?? docsJson
       setDocs(data)
-      setProjects(projJson.data ?? projJson)
+      setProjects(projRes.ok ? (projJson.data ?? projJson) : [])
       if (data.length > 0) setSelected(data[0])
     } catch {}
     setLoading(false)
   }, [])
-
-  useEffect(() => { load() }, [load])
 
   const filtered = docs.filter(d => {
     const matchesSearch = !search ||
@@ -48,14 +47,23 @@ export default function DocsPage() {
       <div className="flex gap-4 h-[calc(100vh-12rem)]">
         {/* Doc list */}
         <div className="w-52 shrink-0 flex flex-col gap-2">
-          <input
-            type="text"
-            placeholder="Search docs…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-surface border border-border rounded px-3 py-2 text-xs text-text placeholder-text-dim focus:outline-none focus:border-accent/50 font-mono"
-          />
-          <div className="flex flex-wrap gap-1">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search docs…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="flex-1 bg-surface border border-border rounded px-3 py-2 text-xs text-text placeholder-text-dim focus:outline-none focus:border-accent/50 font-mono"
+            />
+            <button
+              onClick={load}
+              className="px-3 py-2 text-[10px] font-mono rounded border border-accent/40 text-accent hover:bg-accent/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              {loading ? 'Loading…' : (docs.length ? 'Reload' : 'Load')}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1 mt-1">
             <button
               onClick={() => setProjectFilter(null)}
               className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-widest border transition ${!projectFilter ? 'bg-accent/20 border-accent/40 text-accent' : 'border-border text-text-dim hover:text-text'}`}
